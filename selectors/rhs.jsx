@@ -55,6 +55,10 @@ export function getSearchTerms(state) {
     return state.views.rhs.searchTerms;
 }
 
+export function getSearchResultsTerms(state) {
+    return state.views.rhs.searchResultsTerms;
+}
+
 export function getIsSearchingTerm(state) {
     return state.views.rhs.isSearchingTerm;
 }
@@ -96,4 +100,12 @@ export function makeGetPostsEmbedVisibleObj() {
             return postsEmbedVisibleObj;
         }
     );
+}
+
+export function getIsRhsOpen(state) {
+    return state.views.rhs.isSidebarOpen;
+}
+
+export function getIsRhsMenuOpen(state) {
+    return state.views.rhs.isMenuOpen;
 }

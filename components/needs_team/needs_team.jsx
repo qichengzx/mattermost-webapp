@@ -38,10 +38,18 @@ export default class NeedsTeam extends React.Component {
             getMyTeamUnreads: PropTypes.func.isRequired,
             viewChannel: PropTypes.func.isRequired,
             markChannelAsRead: PropTypes.func.isRequired,
-            getMyChannelMembers: PropTypes.func.isRequired,
         }).isRequired,
         theme: PropTypes.object.isRequired,
         mfaRequired: PropTypes.bool.isRequired,
+
+        /*
+         * Object from react-router
+         */
+        match: PropTypes.shape({
+            params: PropTypes.shape({
+                team: PropTypes.string.isRequired,
+            }).isRequired,
+        }).isRequired,
     };
 
     constructor(params) {
@@ -140,7 +148,7 @@ export default class NeedsTeam extends React.Component {
             window.isActive = true;
 
             if (new Date().getTime() - this.blurTime > UNREAD_CHECK_TIME_MILLISECONDS) {
-                this.props.actions.getMyChannelMembers(TeamStore.getCurrentId()).then(loadProfilesForSidebar);
+                this.props.actions.fetchMyChannelsAndMembers(TeamStore.getCurrentId()).then(loadProfilesForSidebar);
             }
         });
 

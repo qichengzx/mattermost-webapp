@@ -3,7 +3,7 @@
 
 import $ from 'jquery';
 import {batchActions} from 'redux-batched-actions';
-import {ChannelTypes, EmojiTypes, PostTypes, TeamTypes, UserTypes} from 'mattermost-redux/action_types';
+import {ChannelTypes, EmojiTypes, PostTypes, TeamTypes, UserTypes, RoleTypes} from 'mattermost-redux/action_types';
 import {WebsocketEvents, General} from 'mattermost-redux/constants';
 import {getChannelAndMyMember, getChannelStats, viewChannel} from 'mattermost-redux/actions/channels';
 import {setServerVersion} from 'mattermost-redux/actions/general';
@@ -187,8 +187,20 @@ function handleEvent(msg) {
         handleUserUpdatedEvent(msg);
         break;
 
+    case SocketEvents.ROLE_ADDED:
+        handleRoleAddedEvent(msg, dispatch, getState);
+        break;
+
+    case SocketEvents.ROLE_REMOVED:
+        handleRoleRemovedEvent(msg, dispatch, getState);
+        break;
+
     case SocketEvents.MEMBERROLE_UPDATED:
         handleUpdateMemberRoleEvent(msg);
+        break;
+
+    case SocketEvents.ROLE_UPDATED:
+        handleRoleUpdatedEvent(msg, dispatch, getState);
         break;
 
     case SocketEvents.CHANNEL_CREATED:
@@ -201,6 +213,10 @@ function handleEvent(msg) {
 
     case SocketEvents.CHANNEL_UPDATED:
         handleChannelUpdatedEvent(msg);
+        break;
+
+    case SocketEvents.CHANNEL_MEMBER_UPDATED:
+        handleChannelMemberUpdatedEvent(msg);
         break;
 
     case SocketEvents.DIRECT_ADDED:
@@ -270,6 +286,11 @@ function handleEvent(msg) {
 function handleChannelUpdatedEvent(msg) {
     const channel = JSON.parse(msg.data.channel);
     dispatch({type: ChannelTypes.RECEIVED_CHANNEL, data: channel});
+}
+
+function handleChannelMemberUpdatedEvent(msg) {
+    const channelMember = JSON.parse(msg.data.channelMember);
+    dispatch({type: ChannelTypes.RECEIVED_MY_CHANNEL_MEMBER, data: channelMember});
 }
 
 function handleNewPostEvent(msg) {
@@ -488,6 +509,33 @@ function handleUserUpdatedEvent(msg) {
     } else {
         UserStore.saveProfile(user);
     }
+}
+
+function handleRoleAddedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.RECEIVED_ROLE,
+        data: role,
+    });
+}
+
+function handleRoleRemovedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.ROLE_DELETED,
+        data: role,
+    });
+}
+
+function handleRoleUpdatedEvent(msg) {
+    const role = JSON.parse(msg.data.role);
+
+    dispatch({
+        type: RoleTypes.RECEIVED_ROLE,
+        data: role,
+    });
 }
 
 function handleChannelCreatedEvent(msg) {

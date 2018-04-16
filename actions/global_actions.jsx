@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See License.txt for license information.
 
+import debounce from 'lodash/debounce';
+
 import {
     getChannel,
     createDirectChannel,
@@ -24,7 +26,8 @@ import {loadChannelsForCurrentUser} from 'actions/channel_actions.jsx';
 import {handleNewPost} from 'actions/post_actions.jsx';
 import {stopPeriodicStatusUpdates} from 'actions/status_actions.jsx';
 import {loadNewDMIfNeeded, loadNewGMIfNeeded, loadProfilesForSidebar} from 'actions/user_actions.jsx';
-import {closeRightHandSide} from 'actions/views/rhs';
+import {closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
+import {close as closeLhs} from 'actions/views/lhs';
 import * as WebsocketActions from 'actions/websocket_actions.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import BrowserStore from 'stores/browser_store.jsx';
@@ -188,16 +191,6 @@ export function toggleShortcutsModal() {
     });
 }
 
-export function showDeletePostModal(post, commentCount = 0, isRHS) {
-    AppDispatcher.handleViewAction({
-        type: ActionTypes.TOGGLE_DELETE_POST_MODAL,
-        value: true,
-        isRHS,
-        post,
-        commentCount,
-    });
-}
-
 export function showChannelHeaderUpdateModal(channel) {
     AppDispatcher.handleViewAction({
         type: ActionTypes.TOGGLE_CHANNEL_HEADER_UPDATE_MODAL,
@@ -354,8 +347,7 @@ export function sendEphemeralPost(message, channelId, parentId) {
     handleNewPost(post);
 }
 
-export function sendAddToChannelEphemeralPost(user, addedUsername, channelId, postRootId = '') {
-    const timestamp = Utils.getTimestamp();
+export function sendAddToChannelEphemeralPost(user, addedUsername, addedUserId, channelId, postRootId = '', timestamp) {
     const post = {
         id: Utils.generateId(),
         user_id: user.id,
@@ -369,6 +361,7 @@ export function sendAddToChannelEphemeralPost(user, addedUsername, channelId, po
         props: {
             username: user.username,
             addedUsername,
+            addedUserId,
         },
     };
 
@@ -482,11 +475,8 @@ export function clientLogout(redirectTo = '/') {
 
 export function toggleSideBarRightMenuAction() {
     dispatch(closeRightHandSide());
-
-    document.querySelector('.app__body .inner-wrap').classList.remove('move--right', 'move--left', 'move--left-small');
-    document.querySelector('.app__body .sidebar--left').classList.remove('move--right');
-    document.querySelector('.app__body .sidebar--right').classList.remove('move--left');
-    document.querySelector('.app__body .sidebar--menu').classList.remove('move--left');
+    dispatch(closeLhs());
+    dispatch(closeRhsMenu());
 }
 
 export function emitBrowserFocus(focus) {
@@ -549,10 +539,17 @@ export async function redirectUserToDefaultTeam() {
     }
 }
 
-export function postListScrollChange(forceScrollToBottom = false) {
+export const postListScrollChange = debounce(() => {
     AppDispatcher.handleViewAction({
         type: EventTypes.POST_LIST_SCROLL_CHANGE,
-        value: forceScrollToBottom,
+        value: false,
+    });
+});
+
+export function postListScrollChangeToBottom() {
+    AppDispatcher.handleViewAction({
+        type: EventTypes.POST_LIST_SCROLL_CHANGE,
+        value: true,
     });
 }
 

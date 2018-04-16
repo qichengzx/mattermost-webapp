@@ -22,7 +22,6 @@ import ElasticsearchSettings from 'components/admin_console/elasticsearch_settin
 import EmailSettings from 'components/admin_console/email_settings.jsx';
 import ExternalServiceSettings from 'components/admin_console/external_service_settings.jsx';
 import GitLabSettings from 'components/admin_console/gitlab_settings.jsx';
-import LdapSettings from 'components/admin_console/ldap_settings.jsx';
 import LegalAndSupportSettings from 'components/admin_console/legal_and_support_settings.jsx';
 import LicenseSettings from 'components/admin_console/license_settings.jsx';
 import LinkPreviewsSettings from 'components/admin_console/link_previews_settings.jsx';
@@ -35,8 +34,11 @@ import PasswordSettings from 'components/admin_console/password_settings.jsx';
 import PluginSettings from 'components/admin_console/plugin_settings.jsx';
 import PluginManagement from 'components/admin_console/plugin_management';
 import CustomPluginSettings from 'components/admin_console/custom_plugin_settings';
+import PolicySettings from 'components/admin_console/policy_settings';
+import CustomIntegrationSettings from 'components/admin_console/custom_integrations_settings';
+import UsersAndTeamsSettings from 'components/admin_console/users_and_teams_settings';
+
 import SchemaAdminSettings from 'components/admin_console/schema_admin_settings';
-import PolicySettings from 'components/admin_console/policy_settings.jsx';
 import PublicLinkSettings from 'components/admin_console/public_link_settings.jsx';
 import PushSettings from 'components/admin_console/push_settings.jsx';
 import RateSettings from 'components/admin_console/rate_settings.jsx';
@@ -70,20 +72,29 @@ export default class AdminConsole extends React.Component {
     static propTypes = {
 
         /*
+         * Object representing the config file
+         */
+        config: PropTypes.object.isRequired,
+
+        /*
          * Object representing the license
          */
         license: PropTypes.object.isRequired,
 
         /*
-         * Object representing the config file
+         * Object from react-router
          */
-        config: PropTypes.object.isRequired,
+        match: PropTypes.shape({
+            url: PropTypes.string.isRequired,
+        }).isRequired,
 
         /*
          * String whether to show prompt to navigate away
          * from unsaved changes
          */
         showNavigationPrompt: PropTypes.bool.isRequired,
+
+        isCurrentUserSystemAdmin: PropTypes.bool.isRequired,
 
         actions: PropTypes.shape({
 
@@ -118,6 +129,12 @@ export default class AdminConsole extends React.Component {
         const {license, config, showNavigationPrompt} = this.props;
         const {setNavigationBlocked, cancelNavigation, confirmNavigation} = this.props.actions;
 
+        if (!this.props.isCurrentUserSystemAdmin) {
+            return (
+                <Redirect to='/'/>
+            );
+        }
+
         if (Object.keys(config).length === 0) {
             return <div/>;
         }
@@ -143,8 +160,8 @@ export default class AdminConsole extends React.Component {
         return (
             <div className='admin-console__wrapper'>
                 <AnnouncementBar/>
+                <AdminSidebar/>
                 <div className='admin-console'>
-                    <AdminSidebar/>
                     <Switch>
                         <SCRoute
                             path={`${this.props.match.url}/system_analytics`}
@@ -173,11 +190,8 @@ export default class AdminConsole extends React.Component {
                                     />
                                     <SCRoute
                                         path={`${props.match.url}/users_and_teams`}
-                                        component={SchemaAdminSettings}
-                                        extraProps={{
-                                            ...extraProps,
-                                            schema: AdminDefinition.settings.general.users_and_teams.schema,
-                                        }}
+                                        component={UsersAndTeamsSettings}
+                                        extraProps={extraProps}
                                     />
                                     <SCRoute
                                         path={`${props.match.url}/privacy`}
@@ -233,8 +247,11 @@ export default class AdminConsole extends React.Component {
                                     />
                                     <SCRoute
                                         path={`${props.match.url}/ldap`}
-                                        component={LdapSettings}
-                                        extraProps={extraProps}
+                                        component={SchemaAdminSettings}
+                                        extraProps={{
+                                            ...extraProps,
+                                            schema: AdminDefinition.settings.authentication.ldap.schema,
+                                        }}
                                     />
                                     <SCRoute
                                         path={`${props.match.url}/saml`}
@@ -315,11 +332,8 @@ export default class AdminConsole extends React.Component {
                                 <Switch>
                                     <SCRoute
                                         path={`${props.match.url}/custom`}
-                                        component={SchemaAdminSettings}
-                                        extraProps={{
-                                            ...extraProps,
-                                            schema: AdminDefinition.settings.integrations.custom.schema,
-                                        }}
+                                        component={CustomIntegrationSettings}
+                                        extraProps={extraProps}
                                     />
                                     <SCRoute
                                         path={`${props.match.url}/external`}

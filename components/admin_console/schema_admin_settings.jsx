@@ -20,6 +20,7 @@ import RadioSetting from 'components/admin_console/radio_setting.jsx';
 import GeneratedSetting from 'components/admin_console/generated_setting.jsx';
 import UserAutocompleteSetting from 'components/admin_console/user_autocomplete_setting.jsx';
 import SettingsGroup from 'components/admin_console/settings_group.jsx';
+import JobsTable from 'components/admin_console/jobs';
 
 export default class SchemaAdminSettings extends AdminSettings {
     constructor(props) {
@@ -35,6 +36,8 @@ export default class SchemaAdminSettings extends AdminSettings {
             [SettingsTypes.TYPE_USERNAME]: this.buildUsernameSetting,
             [SettingsTypes.TYPE_BUTTON]: this.buildButtonSetting,
             [SettingsTypes.TYPE_LANGUAGE]: this.buildLanguageSetting,
+            [SettingsTypes.TYPE_JOBSTABLE]: this.buildJobsTableSetting,
+            [SettingsTypes.TYPE_CUSTOM]: this.buildCustomSetting,
         };
     }
 
@@ -56,7 +59,7 @@ export default class SchemaAdminSettings extends AdminSettings {
 
             const settings = schema.settings || [];
             settings.forEach((setting) => {
-                configSettings[setting.key] = this.state[setting.key];
+                configSettings[setting.key] = this.getSettingValue(setting);
             });
         }
 
@@ -76,6 +79,27 @@ export default class SchemaAdminSettings extends AdminSettings {
         }
 
         return state;
+    }
+
+    getSetting(key) {
+        for (const setting of this.props.schema.settings) {
+            if (setting.key === key) {
+                return setting;
+            }
+        }
+
+        return null;
+    }
+
+    getSettingValue(setting) {
+        // Force boolean values to false when disabled.
+        if (setting.type === SettingsTypes.TYPE_BOOL) {
+            if (this.isDisabled(setting)) {
+                return false;
+            }
+        }
+
+        return this.state[setting.key];
     }
 
     renderTitle = () => {
@@ -127,25 +151,42 @@ export default class SchemaAdminSettings extends AdminSettings {
             return <span>{setting.help_text}</span>;
         }
 
-        if (typeof setting.help_text === 'string') {
-            if (setting.help_text_html) {
+        let helpText;
+        let isHTML;
+        let helpTextValues;
+        let helpTextDefault;
+        if (setting.disabled_help_text && this.isDisabled(setting)) {
+            helpText = setting.disabled_help_text;
+            isHTML = setting.disabled_help_text_html;
+            helpTextValues = setting.disabled_help_text_values;
+            helpTextDefault = setting.disabled_help_text_default;
+        } else {
+            helpText = setting.help_text;
+            isHTML = setting.help_text_html;
+            helpTextValues = setting.help_text_values;
+            helpTextDefault = setting.help_text_default;
+        }
+
+        if (typeof helpText === 'string') {
+            if (isHTML) {
                 return (
                     <FormattedHTMLMessage
-                        id={setting.help_text}
-                        values={setting.help_text_values}
-                        defaultMessage={setting.help_text_default}
+                        id={helpText}
+                        values={helpTextValues}
+                        defaultMessage={helpTextDefault}
                     />
                 );
             }
             return (
                 <FormattedMessage
-                    id={setting.help_text}
-                    defaultMessage={setting.help_text_default}
-                    values={setting.help_text_values}
+                    id={helpText}
+                    defaultMessage={helpTextDefault}
+                    values={helpTextValues}
                 />
             );
         }
-        return setting.help_text;
+
+        return helpText;
     }
 
     renderLabel = (setting) => {
@@ -162,9 +203,27 @@ export default class SchemaAdminSettings extends AdminSettings {
     isDisabled = (setting) => {
         if (setting.needs) {
             for (const need of setting.needs) {
-                if (this.state[need[0]] !== need[1]) {
+                const actual = this.getSettingValue(this.getSetting(need[0]));
+                const expected = need[1];
+
+                if (expected instanceof RegExp) {
+                    if (!expected.test(actual)) {
+                        return true;
+                    }
+                } else if (actual !== expected) {
                     return true;
                 }
+            }
+        }
+        if (setting.needs_or) {
+            let disabled = true;
+            for (const need of setting.needs_or) {
+                if (this.state[need[0]] === need[1]) {
+                    disabled = false;
+                }
+            }
+            if (disabled) {
+                return true;
             }
         }
         if (setting.needs_license && !this.props.license.IsLicensed) {
@@ -183,11 +242,15 @@ export default class SchemaAdminSettings extends AdminSettings {
                 requestAction={setting.action}
                 helpText={this.renderHelpText(setting)}
                 buttonText={<span>{this.renderLabel(setting)}</span>}
-                showSuccessMessage={false}
+                showSuccessMessage={Boolean(setting.success_message)}
                 includeDetailedError={true}
                 errorMessage={{
                     id: setting.error_message,
-                    defaultMessage: setting.error_message,
+                    defaultMessage: setting.error_message_default,
+                }}
+                successMessage={setting.success_message && {
+                    id: setting.success_message,
+                    defaultMessage: setting.success_message_default,
                 }}
             />
         );
@@ -220,7 +283,7 @@ export default class SchemaAdminSettings extends AdminSettings {
                 id={setting.key}
                 label={this.renderLabel(setting)}
                 helpText={this.renderHelpText(setting)}
-                value={this.state[setting.key] || false}
+                value={(!this.isDisabled(setting) && this.state[setting.key]) || false}
                 disabled={this.isDisabled(setting)}
                 onChange={this.handleChange}
             />
@@ -362,6 +425,38 @@ export default class SchemaAdminSettings extends AdminSettings {
         );
     }
 
+    buildJobsTableSetting = (setting) => {
+        return (
+            <JobsTable
+                key={this.props.schema.id + '_userautocomplete_' + setting.key}
+                jobType={setting.job_type}
+                getExtraInfoText={setting.render_job}
+                disabled={this.isDisabled(setting)}
+                createJobButtonText={
+                    <FormattedMessage
+                        id={setting.label}
+                        defaultMessage={setting.label_default}
+                    />
+                }
+                createJobHelpText={
+                    <FormattedMessage
+                        id={setting.help_text}
+                        defaultMessage={setting.help_text_default}
+                    />
+                }
+            />
+        );
+    }
+
+    buildCustomSetting = (setting) => {
+        const CustomComponent = setting.component;
+        return (
+            <CustomComponent
+                key={this.props.schema.id + '_userautocomplete_' + setting.key}
+            />
+        );
+    }
+
     renderSettings = () => {
         const schema = this.props.schema;
 
@@ -405,5 +500,15 @@ export default class SchemaAdminSettings extends AdminSettings {
                 {footer}
             </SettingsGroup>
         );
+    }
+
+    render = () => {
+        const schema = this.props.schema;
+
+        if (schema.component) {
+            const CustomComponent = schema.component;
+            return (<CustomComponent {...this.props}/>);
+        }
+        return AdminSettings.prototype.render.call(this);
     }
 }

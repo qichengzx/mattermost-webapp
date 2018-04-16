@@ -23,7 +23,7 @@ import MsgTyping from 'components/msg_typing';
 import PostDeletedModal from 'components/post_deleted_modal.jsx';
 import EmojiIcon from 'components/svg/emoji_icon';
 import Textbox from 'components/textbox.jsx';
-import TutorialTip from 'components/tutorial/tutorial_tip.jsx';
+import TutorialTip from 'components/tutorial/tutorial_tip';
 
 const KeyCodes = Constants.KeyCodes;
 
@@ -123,6 +123,11 @@ export default class CreatePost extends React.Component {
          * Whether to check with the user before notifying the whole channel.
          */
         enableConfirmNotificationsToChannel: PropTypes.bool.isRequired,
+
+        /**
+         * The maximum length of a post
+         */
+        maxPostSize: PropTypes.number.isRequired,
 
         actions: PropTypes.shape({
 
@@ -869,6 +874,7 @@ export default class CreatePost extends React.Component {
                                 id='post_textbox'
                                 ref='textbox'
                                 disabled={readOnlyChannel}
+                                characterLimit={this.props.maxPostSize}
                             />
                             <span
                                 ref='createPostControls'

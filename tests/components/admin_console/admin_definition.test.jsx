@@ -12,6 +12,7 @@ const baseShape = {
     needs_no_license: yup.boolean(),
     needs_license: yup.boolean(),
     needs: yup.array().of(yup.array().of(yup.string())),
+    needs_or: yup.array().of(yup.array().of(yup.string())),
 };
 
 const fieldShape = {
@@ -81,7 +82,21 @@ const settingDropdown = yup.object().shape({
     options: yup.array().of(option),
 });
 
-const setting = yup.mixed().test('is-setting', 'not a valid setting', (value) => {
+const settingCustom = yup.object().shape({
+    type: yup.mixed().oneOf([Constants.SettingsTypes.TYPE_CUSTOM]),
+    ...baseShape,
+    component: yup.object().required(),
+});
+
+const settingJobsTable = yup.object().shape({
+    type: yup.mixed().oneOf([Constants.SettingsTypes.TYPE_JOBSTABLE]),
+    ...baseShape,
+    job_type: yup.string().required(),
+    render_job: yup.object().required(),
+});
+
+// eslint-disable-next-line no-template-curly-in-string
+const setting = yup.mixed().test('is-setting', 'not a valid setting: ${path}', (value) => {
     let valid = false;
     valid = valid || settingBanner.isValidSync(value);
     valid = valid || settingBool.isValidSync(value);
@@ -91,6 +106,8 @@ const setting = yup.mixed().test('is-setting', 'not a valid setting', (value) =>
     valid = valid || settingLanguage.isValidSync(value);
     valid = valid || settingMultiLanguage.isValidSync(value);
     valid = valid || settingDropdown.isValidSync(value);
+    valid = valid || settingCustom.isValidSync(value);
+    valid = valid || settingJobsTable.isValidSync(value);
     return valid;
 });
 
@@ -101,8 +118,18 @@ var schema = yup.object().shape({
     settings: yup.array().of(setting).required(),
 });
 
+var customComponentSchema = yup.object().shape({
+    id: yup.string().required(),
+    component: yup.object().required(),
+});
+
 var definition = yup.object().shape({
-    reporting: yup.object().shape({}),
+    reporting: yup.object().shape({
+        system_analytics: yup.object().shape({schema: customComponentSchema}),
+        team_analytics: yup.object().shape({schema: customComponentSchema}),
+        system_users: yup.object().shape({schema: customComponentSchema}),
+        server_logs: yup.object().shape({schema: customComponentSchema}),
+    }),
     settings: yup.object().shape({
         general: yup.object().shape({
             configuration: yup.object().shape({schema}),
@@ -113,6 +140,7 @@ var definition = yup.object().shape({
         }),
         authentication: yup.object().shape({
             email: yup.object().shape({schema}),
+            ldap: yup.object().shape({schema}),
             mfa: yup.object().shape({schema}),
         }),
         security: yup.object().shape({}),
@@ -126,7 +154,10 @@ var definition = yup.object().shape({
         compliance: yup.object().shape({}),
         advanced: yup.object().shape({}),
     }),
-    other: yup.object().shape({}),
+    other: yup.object().shape({
+        license: yup.object().shape({schema: customComponentSchema}),
+        audits: yup.object().shape({schema: customComponentSchema}),
+    }),
 });
 
 describe('components/admin_console/admin_definition', () => {

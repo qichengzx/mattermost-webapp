@@ -7,9 +7,12 @@ import {OverlayTrigger, Tooltip} from 'react-bootstrap';
 import ReactDOM from 'react-dom';
 import {FormattedMessage} from 'react-intl';
 import {PropTypes} from 'prop-types';
+import Permissions from 'mattermost-redux/constants/permissions';
+import classNames from 'classnames';
 
 import {browserHistory} from 'utils/browser_history';
 import {trackEvent} from 'actions/diagnostics_actions.jsx';
+import {goToChannelById} from 'actions/channel_actions.jsx';
 import AppDispatcher from 'dispatcher/app_dispatcher.jsx';
 import * as ChannelUtils from 'utils/channel_utils.jsx';
 import {ActionTypes, Constants} from 'utils/constants.jsx';
@@ -18,6 +21,7 @@ import favicon from 'images/favicon/favicon-16x16.png';
 import redFavicon from 'images/favicon/redfavicon-16x16.png';
 import MoreChannels from 'components/more_channels';
 import MoreDirectChannels from 'components/more_direct_channels';
+import TeamPermissionGate from 'components/permissions_gates/team_permission_gate';
 
 import NewChannelFlow from '../new_channel_flow.jsx';
 import UnreadChannelIndicator from '../unread_channel_indicator.jsx';
@@ -32,6 +36,8 @@ export default class Sidebar extends React.PureComponent {
          * Global config object
          */
         config: PropTypes.object.isRequired,
+
+        isOpen: PropTypes.bool.isRequired,
 
         /**
          * List of public channels (ids)
@@ -71,12 +77,12 @@ export default class Sidebar extends React.PureComponent {
         /**
          * Current team object
          */
-        currentTeam: PropTypes.object.isRequired,
+        currentTeam: PropTypes.object,
 
         /**
          * Current user object
          */
-        currentUser: PropTypes.object.isRequired,
+        currentUser: PropTypes.object,
 
         /**
          * Number of unread mentions/messages
@@ -88,18 +94,8 @@ export default class Sidebar extends React.PureComponent {
          */
         showUnreadSection: PropTypes.bool.isRequired,
 
-        /**
-         * Flag to display the option to create public channels.
-         */
-        showCreatePublicChannelOption: PropTypes.bool.isRequired,
-
-        /**
-         * Flag to display the option to create private channels.
-         */
-        showCreatePrivateChannelOption: PropTypes.bool.isRequired,
-
         actions: PropTypes.shape({
-            goToChannelById: PropTypes.func.isRequired,
+            close: PropTypes.func.isRequired,
         }).isRequired,
     };
 
@@ -162,21 +158,11 @@ export default class Sidebar extends React.PureComponent {
             if (this.closedDirectChannel) {
                 this.closedDirectChannel = false;
             } else {
-                $('.app__body .inner-wrap').removeClass('move--right');
-                $('.app__body .sidebar--left').removeClass('move--right');
-                $('.multi-teams .team-sidebar').removeClass('move--right');
+                this.props.actions.close();
             }
         }
 
         this.updateTitle();
-
-        if (this.props.currentChannel.type === Constants.DM_CHANNEL &&
-            this.props.currentTeammate && prevProps.currentTeammate &&
-            this.props.currentTeammate.display_name !== prevProps.currentTeammate.display_name
-        ) {
-            window.history.replaceState(null, null, `/${this.props.currentTeam.name}/messages/@${this.props.currentTeammate.display_name}`);
-        }
-
         this.setBadgesActiveAndFavicon();
         this.setFirstAndLastUnreadChannels();
     }
@@ -353,9 +339,9 @@ export default class Sidebar extends React.PureComponent {
             } else {
                 nextIndex = curIndex - 1;
             }
-            const nextChannel = allChannelIds[Utils.mod(nextIndex, allChannelIds.length)];
-            this.props.actions.goToChannelById(nextChannel);
-            this.updateScrollbarOnChannelChange(nextChannel);
+            const nextChannelId = allChannelIds[Utils.mod(nextIndex, allChannelIds.length)];
+            goToChannelById(nextChannelId);
+            this.updateScrollbarOnChannelChange(nextChannelId);
             this.isSwitchingChannel = false;
         } else if (Utils.cmdOrCtrlPressed(e) && e.shiftKey && Utils.isKeyPressed(e, Constants.KeyCodes.K)) {
             this.handleOpenMoreDirectChannelsModal(e);
@@ -389,9 +375,9 @@ export default class Sidebar extends React.PureComponent {
             );
 
             if (nextIndex !== -1) {
-                const nextChannel = allChannelIds[nextIndex];
-                this.props.actions.goToChannelById(nextChannel);
-                this.updateScrollbarOnChannelChange(nextChannel);
+                const nextChannelId = allChannelIds[nextIndex];
+                goToChannelById(nextChannelId);
+                this.updateScrollbarOnChannelChange(nextChannelId);
             }
 
             this.isSwitchingChannel = false;
@@ -566,7 +552,7 @@ export default class Sidebar extends React.PureComponent {
             tooltipTriggers = [];
         }
 
-        let createPublicChannelIcon = (
+        const createPublicChannelIcon = (
             <OverlayTrigger
                 trigger={tooltipTriggers}
                 delayShow={500}
@@ -583,7 +569,7 @@ export default class Sidebar extends React.PureComponent {
             </OverlayTrigger>
         );
 
-        let createPrivateChannelIcon = (
+        const createPrivateChannelIcon = (
             <OverlayTrigger
                 trigger={tooltipTriggers}
                 delayShow={500}
@@ -600,10 +586,6 @@ export default class Sidebar extends React.PureComponent {
             </OverlayTrigger>
         );
 
-        if (!this.props.showCreatePublicChannelOption) {
-            createPublicChannelIcon = null;
-        }
-
         const createDirectMessageIcon = (
             <OverlayTrigger
                 className='hidden-xs'
@@ -619,10 +601,6 @@ export default class Sidebar extends React.PureComponent {
                 </button>
             </OverlayTrigger>
         );
-
-        if (!this.props.showCreatePrivateChannelOption) {
-            createPrivateChannelIcon = null;
-        }
 
         let moreDirectChannelsModal;
         if (this.state.showDirectChannelsModal) {
@@ -665,7 +643,7 @@ export default class Sidebar extends React.PureComponent {
 
         return (
             <div
-                className='sidebar--left'
+                className={classNames('sidebar--left', {'move--right': this.props.isOpen && Utils.isMobile()})}
                 id='sidebar-left'
                 key='sidebar-left'
             >
@@ -678,6 +656,7 @@ export default class Sidebar extends React.PureComponent {
                 {moreChannelsModal}
 
                 <SidebarHeader
+                    teamId={this.props.currentTeam.id}
                     teamDisplayName={this.props.currentTeam.display_name}
                     teamDescription={this.props.currentTeam.description}
                     teamName={this.props.currentTeam.name}
@@ -735,7 +714,12 @@ export default class Sidebar extends React.PureComponent {
                                     id='sidebar.channels'
                                     defaultMessage='PUBLIC CHANNELS'
                                 />
-                                {createPublicChannelIcon}
+                                <TeamPermissionGate
+                                    teamId={this.props.currentTeam.id}
+                                    permissions={[Permissions.CREATE_PUBLIC_CHANNEL]}
+                                >
+                                    {createPublicChannelIcon}
+                                </TeamPermissionGate>
                             </h4>
                         </li>
                         {publicChannelItems}
@@ -760,7 +744,12 @@ export default class Sidebar extends React.PureComponent {
                                     id='sidebar.pg'
                                     defaultMessage='PRIVATE CHANNELS'
                                 />
-                                {createPrivateChannelIcon}
+                                <TeamPermissionGate
+                                    teamId={this.props.currentTeam.id}
+                                    permissions={[Permissions.CREATE_PRIVATE_CHANNEL]}
+                                >
+                                    {createPrivateChannelIcon}
+                                </TeamPermissionGate>
                             </h4>
                         </li>
                         {privateChannelItems}

@@ -111,6 +111,7 @@ function createPost({
             enableTutorial={true}
             enableConfirmNotificationsToChannel={true}
             enableEmojiPicker={true}
+            maxPostSize={Constants.DEFAULT_CHARACTER_LIMIT}
         />
     );
 }
@@ -606,7 +607,7 @@ describe('components/create_post', () => {
         const wrapper = shallow(createPost({
             showTutorialTip: true,
         }));
-        expect(wrapper.find('TutorialTip').length).toBe(1);
+        expect(wrapper).toMatchSnapshot();
     });
 
     it('Toggle showPostDeletedModal state', () => {

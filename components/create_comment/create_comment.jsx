@@ -41,6 +41,11 @@ export default class CreateComment extends React.PureComponent {
         rootId: PropTypes.string.isRequired,
 
         /**
+         * True if the root message was deleted
+         */
+        rootDeleted: PropTypes.bool.isRequired,
+
+        /**
          * The current history message selected
          */
         messageInHistory: PropTypes.string,
@@ -133,6 +138,11 @@ export default class CreateComment extends React.PureComponent {
          * Set if the emoji picker is enabled.
          */
         enableEmojiPicker: PropTypes.bool.isRequired,
+
+        /**
+         * The maximum length of a post
+         */
+        maxPostSize: PropTypes.number.isRequired,
     }
 
     constructor(props) {
@@ -278,6 +288,11 @@ export default class CreateComment extends React.PureComponent {
             setTimeout(() => {
                 this.setState({errorClass: null});
             }, Constants.ANIMATION_TIMEOUT);
+            return;
+        }
+
+        if (this.props.rootDeleted) {
+            this.showPostDeletedModal();
             return;
         }
 
@@ -634,6 +649,7 @@ export default class CreateComment extends React.PureComponent {
                                 id='reply_textbox'
                                 ref='textbox'
                                 disabled={readOnlyChannel}
+                                characterLimit={this.props.maxPostSize}
                             />
                             <span
                                 ref='createCommentControls'

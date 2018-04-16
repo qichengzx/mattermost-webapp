@@ -24,33 +24,39 @@ export default class DotMenu extends Component {
         isRHS: PropTypes.bool,
         handleCommentClick: PropTypes.func,
         handleDropdownOpened: PropTypes.func,
+        isReadOnly: PropTypes.bool,
 
         actions: PropTypes.shape({
 
-            /*
+            /**
              * Function flag the post
              */
             flagPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to unflag the post
              */
             unflagPost: PropTypes.func.isRequired,
 
-            /*
-             * Function to set the edting post
+            /**
+             * Function to set the editing post
              */
             setEditingPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to pin the post
              */
             pinPost: PropTypes.func.isRequired,
 
-            /*
+            /**
              * Function to unpin the post
              */
             unpinPost: PropTypes.func.isRequired,
+
+            /**
+             * Function to open a modal
+             */
+            openModal: PropTypes.func.isRequired,
         }).isRequired,
     }
 
@@ -60,6 +66,7 @@ export default class DotMenu extends Component {
         commentCount: 0,
         isFlagged: false,
         isRHS: false,
+        isReadOnly: false,
     }
 
     constructor(props) {
@@ -162,18 +169,19 @@ export default class DotMenu extends Component {
                     post={this.props.post}
                 />
             );
-
-            dotMenuPin = (
-                <DotMenuItem
-                    idPrefix={idPrefix + 'Pin'}
-                    idCount={this.props.idCount}
-                    post={this.props.post}
-                    actions={{
-                        pinPost: this.props.actions.pinPost,
-                        unpinPost: this.props.actions.unpinPost,
-                    }}
-                />
-            );
+            if (!this.props.isReadOnly) {
+                dotMenuPin = (
+                    <DotMenuItem
+                        idPrefix={idPrefix + 'Pin'}
+                        idCount={this.props.idCount}
+                        post={this.props.post}
+                        actions={{
+                            pinPost: this.props.actions.pinPost,
+                            unpinPost: this.props.actions.unpinPost,
+                        }}
+                    />
+                );
+            }
         }
 
         let dotMenuDelete = null;
@@ -185,6 +193,9 @@ export default class DotMenu extends Component {
                     idCount={this.props.idCount}
                     post={this.props.post}
                     commentCount={type === 'Post' ? this.props.commentCount : 0}
+                    actions={{
+                        openModal: this.props.actions.openModal,
+                    }}
                 />
             );
         }
